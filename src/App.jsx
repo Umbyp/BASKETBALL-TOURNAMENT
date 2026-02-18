@@ -966,7 +966,7 @@ export default function App() {
       {/* Header */}
       <header className="relative z-10 pt-12 pb-6 px-4">
         <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
-          <img src="/logo.png" alt="Logo" className="w-12 h-12 sm:w-20 sm:h-20 object-contain rounded-lg shadow-lg border border-white/10" />
+          <img src="/logo.png" alt="Logo" className="w-14 h-14 sm:w-20 sm:h-20 lg:w-20 lg:h-22 xl:w-28 xl:h-28 object-contain rounded-lg shadow-lg border border-white/10" />
         </div>
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/30 bg-orange-500/5 mb-4 backdrop-blur-sm">
@@ -974,7 +974,7 @@ export default function App() {
             <span className="text-[10px] font-bold text-orange-300 uppercase tracking-widest">Live Tournament System</span>
           </div>
           <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter leading-none mb-2">
-            BANGMOD <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">2026</span>
+            BANGMOD CUP #1 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">2026</span>
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm font-medium tracking-wide uppercase">Official Basketball Championship</p>
         </div>

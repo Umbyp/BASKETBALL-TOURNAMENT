@@ -1066,7 +1066,7 @@ export default function App() {
       </main>
 
       <footer className="relative z-10 text-center py-10">
-        <p className="text-[9px] font-mono text-gray-700">POWERED BY FIREBASE • BANGMOD 2026</p>
+        <p className="text-[9px] font-mono text-gray-700">POWERED BY  BANGMOD CUP</p>
         <button
           onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)}
           className={`mt-4 text-[9px] font-bold uppercase tracking-widest transition-all ${isAdmin ? "text-red-500" : "text-gray-800 opacity-30 hover:opacity-100 hover:text-white"}`}

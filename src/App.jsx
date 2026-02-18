@@ -39,12 +39,10 @@ function computeStandings(teams, matches) {
   const stats = {};
   if (!teams || !matches) return {};
 
-  // 1. Init Stats
   Object.entries(teams).forEach(([g, ts]) => ts.forEach((t) => {
     stats[t] = { team: t, group: g, played: 0, wins: 0, losses: 0, pts: 0, pf: 0, pa: 0 };
   }));
 
-  // 2. Process Matches
   matches.forEach((m) => {
     if (!m.played || m.round !== 1) return;
     const h = stats[m.home], a = stats[m.away];
@@ -57,8 +55,6 @@ function computeStandings(teams, matches) {
   const grouped = {};
   Object.keys(teams).forEach((g) => {
     const groupTeams = teams[g].map((t) => stats[t]);
-
-    // 3. Sorting (FIBA Rules)
     grouped[g] = groupTeams.sort((a, b) => {
       if (b.pts !== a.pts) return b.pts - a.pts;
       const h2hMatch = matches.find(m => m.round === 1 && m.played && ((m.home === a.team && m.away === b.team) || (m.home === b.team && m.away === a.team)));
@@ -76,31 +72,40 @@ function computeStandings(teams, matches) {
   return grouped;
 }
 
-// Generate consistent color from string
-const stringToColor = (str) => {
+const getTeamStyle = (name) => {
+  const gradients = [
+    "from-orange-500 to-red-700",
+    "from-blue-600 to-indigo-900",
+    "from-emerald-600 to-teal-900",
+    "from-purple-600 to-fuchsia-900",
+    "from-amber-500 to-yellow-800",
+    "from-rose-600 to-pink-900",
+    "from-cyan-600 to-blue-800",
+    "from-slate-500 to-slate-800",
+  ];
   let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const c = (hash & 0x00ffffff).toString(16).toUpperCase();
-  return "#" + "00000".substring(0, 6 - c.length) + c;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
 };
 
 // --- UI Components ---
 
 function TeamAvatar({ name, size = "md" }) {
-  const color = useMemo(() => stringToColor(name || "??"), [name]);
+  const gradient = useMemo(() => getTeamStyle(name || "??"), [name]);
   const initial = name ? name.charAt(0).toUpperCase() : "?";
   
   const sizeClass = {
     sm: "w-6 h-6 text-[10px]",
-    md: "w-8 h-8 text-xs",
+    md: "w-9 h-9 text-xs",
     lg: "w-12 h-12 text-lg",
     xl: "w-16 h-16 text-2xl"
   };
 
   return (
     <div 
-      className={`${sizeClass[size]} rounded-full flex items-center justify-center font-black text-white shadow-inner border border-white/10 shrink-0`}
-      style={{ backgroundColor: color, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+      className={`${sizeClass[size]} rounded-full flex items-center justify-center font-black text-white shadow-lg border border-white/20 shrink-0 bg-gradient-to-br ${gradient}`}
+      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
     >
       {initial}
     </div>
@@ -169,8 +174,6 @@ function ScoreModal({ match, onClose, onSave }) {
             <Badge color="purple" className="mb-2">Update Result</Badge>
             <div className="text-xs text-gray-500 font-mono mt-1">{match.label || `Match #${match.id}`}</div>
         </div>
-        
-        {/* Date/Time Inputs */}
         <div className="grid grid-cols-2 gap-3 mb-6 bg-gray-950/50 p-3 rounded-xl border border-gray-800">
             <div>
                 <label className="text-[10px] text-gray-500 font-bold uppercase block mb-1">Date</label>
@@ -181,8 +184,6 @@ function ScoreModal({ match, onClose, onSave }) {
                 <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full bg-transparent text-white text-xs outline-none font-mono" />
             </div>
         </div>
-
-        {/* Score Inputs */}
         <div className="flex items-center justify-between gap-4 mb-8">
           <div className="flex flex-col items-center flex-1">
              <TeamAvatar name={match.home} size="lg" />
@@ -196,7 +197,6 @@ function ScoreModal({ match, onClose, onSave }) {
              <input type="number" value={a} onChange={e => setA(e.target.value)} className="mt-2 w-16 h-12 bg-gray-800 border border-gray-700 rounded-lg text-center text-2xl font-black text-white focus:border-orange-500 outline-none tabular-nums" placeholder="-" />
           </div>
         </div>
-
         <button onClick={handleSave} className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-black uppercase tracking-widest shadow-lg shadow-orange-900/20 transition-all">Confirm Result</button>
       </div>
     </div>
@@ -205,17 +205,93 @@ function ScoreModal({ match, onClose, onSave }) {
 
 function FilterPill({ active, onClick, label }) {
     return (
-        <button 
-            onClick={onClick}
-            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all whitespace-nowrap ${
-                active 
-                ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]" 
-                : "bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300"
-            }`}
-        >
+        <button onClick={onClick} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all whitespace-nowrap ${active ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]" : "bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300"}`}>
             {label}
         </button>
     )
+}
+
+function BracketNode({ match, nextMatch }) {
+    const homeWins = match.played && match.homeScore > match.awayScore;
+    const awayWins = match.played && match.awayScore > match.homeScore;
+    
+    return (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 w-40 flex-shrink-0 relative z-10 hover:border-gray-600 transition-colors shadow-lg">
+            <div className="text-[9px] text-gray-500 uppercase font-black mb-2">{match.shortLabel}</div>
+            {/* Home */}
+            <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <TeamAvatar name={match.home} size="sm" />
+                    <span className={`text-[10px] font-bold truncate ${homeWins ? "text-white" : "text-gray-500"}`}>{match.home}</span>
+                </div>
+                <span className={`text-[10px] font-mono font-bold ${homeWins ? "text-orange-400" : "text-gray-600"}`}>{match.played ? match.homeScore : "-"}</span>
+            </div>
+            {/* Away */}
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <TeamAvatar name={match.away} size="sm" />
+                    <span className={`text-[10px] font-bold truncate ${awayWins ? "text-white" : "text-gray-500"}`}>{match.away}</span>
+                </div>
+                <span className={`text-[10px] font-mono font-bold ${awayWins ? "text-orange-400" : "text-gray-600"}`}>{match.played ? match.awayScore : "-"}</span>
+            </div>
+        </div>
+    )
+}
+
+function BracketTab({ matches }) {
+    // Helper to find match by ID
+    const m = (id) => matches.find(x => x.id === id) || {};
+
+    return (
+        <div className="overflow-x-auto pb-12 pt-4 animate-fade-in">
+            <div className="flex items-center gap-8 min-w-[700px] px-4">
+                
+                {/* Round of 8 (Quarter Finals) */}
+                <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-6 relative">
+                        <BracketNode match={m(100)} /> {/* QF1 */}
+                        <div className="absolute right-[-20px] top-[25%] bottom-[25%] w-[20px] border-r border-t border-b border-gray-700 rounded-r-lg"></div>
+                        <BracketNode match={m(101)} /> {/* QF2 */}
+                    </div>
+                    <div className="flex flex-col gap-6 relative">
+                        <BracketNode match={m(102)} /> {/* QF3 */}
+                        <div className="absolute right-[-20px] top-[25%] bottom-[25%] w-[20px] border-r border-t border-b border-gray-700 rounded-r-lg"></div>
+                        <BracketNode match={m(103)} /> {/* QF4 */}
+                    </div>
+                </div>
+
+                {/* Semi Finals */}
+                <div className="flex flex-col gap-24 relative">
+                     <div className="relative">
+                         <div className="absolute left-[-20px] top-1/2 w-[20px] border-t border-gray-700"></div>
+                         <BracketNode match={m(200)} /> {/* SF1 */}
+                         <div className="absolute right-[-20px] top-1/2 h-[150px] w-[20px] border-r border-t border-gray-700 rounded-tr-lg translate-y-[0px]"></div>
+                     </div>
+                     <div className="relative">
+                         <div className="absolute left-[-20px] top-1/2 w-[20px] border-t border-gray-700"></div>
+                         <BracketNode match={m(201)} /> {/* SF2 */}
+                         <div className="absolute right-[-20px] bottom-1/2 h-[150px] w-[20px] border-r border-b border-gray-700 rounded-br-lg translate-y-[0px]"></div>
+                     </div>
+                </div>
+
+                {/* Finals */}
+                <div className="flex flex-col gap-10 mt-1">
+                    <div className="relative">
+                        <div className="absolute left-[-20px] top-1/2 w-[20px] border-t border-gray-700"></div>
+                        <div className="absolute -top-10 left-0 right-0 text-center text-[10px] text-yellow-500 font-black uppercase tracking-widest animate-pulse">🏆 Champion</div>
+                        <BracketNode match={m(301)} /> {/* FINAL */}
+                    </div>
+                    
+                    {/* 3rd Place (Optional placement) */}
+                    <div className="relative opacity-70 scale-90 mt-8">
+                         <div className="text-[9px] text-center text-gray-600 uppercase mb-1">3rd Place Match</div>
+                         <BracketNode match={m(300)} />
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
 }
 
 function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
@@ -238,7 +314,6 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Modern Filters */}
       <div className="space-y-3">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {rounds.map(r => (
@@ -252,7 +327,6 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
         </div>
       </div>
 
-      {/* Match List */}
       <div className="space-y-3">
         {filtered.length === 0 && <div className="text-center py-10 text-gray-600 text-xs font-mono">NO MATCHES FOUND</div>}
         
@@ -263,7 +337,6 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
 
           return (
             <div key={m.id} className="relative group overflow-hidden bg-gray-900 border border-gray-800 rounded-2xl hover:border-gray-700 transition-all shadow-lg">
-              {/* Match Header (Date/Time/Round) */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-950/30 border-b border-gray-800/50">
                  <div className="flex items-center gap-2">
                     <span className="text-[9px] font-black text-gray-500 uppercase">{m.label || "Group Stage"}</span>
@@ -274,17 +347,12 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
                     {m.time && <span className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-300">{m.time}</span>}
                  </div>
               </div>
-
-              {/* Match Body */}
               <div className="p-4 flex items-center justify-between">
-                {/* Home Team */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <TeamAvatar name={m.home} size="md" />
                     <span className={`text-xs font-bold truncate ${m.played && !homeWins && !isDraw ? "text-gray-500" : "text-white"}`}>{m.home}</span>
                     {homeWins && <span className="text-[8px] bg-orange-500 text-black px-1 rounded font-black">WIN</span>}
                 </div>
-
-                {/* Score */}
                 <div className="flex flex-col items-center justify-center px-2 min-w-[80px]">
                     {m.played ? (
                         <div className="flex items-center gap-1 text-2xl font-black tabular-nums tracking-tighter">
@@ -301,16 +369,12 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
                         </button>
                     )}
                 </div>
-
-                {/* Away Team */}
                 <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
                     {awayWins && <span className="text-[8px] bg-orange-500 text-black px-1 rounded font-black">WIN</span>}
                     <span className={`text-xs font-bold truncate text-right ${m.played && !awayWins && !isDraw ? "text-gray-500" : "text-white"}`}>{m.away}</span>
                     <TeamAvatar name={m.away} size="md" />
                 </div>
               </div>
-              
-              {/* Admin Quick Delete */}
               {isAdmin && m.played && (
                  <button onClick={() => onDeleteScore(m.id)} className="absolute top-2 right-2 p-1 rounded hover:bg-red-500/20 text-gray-700 hover:text-red-500 transition-colors">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -325,15 +389,11 @@ function ScheduleTab({ matches, isAdmin, onEditScore, onDeleteScore }) {
 }
 
 function StandingsTab({ standings }) {
-  // Configurable highlighting for Top N teams
   const QUALIFIED_COUNT = 2; 
-
   return (
     <div className="space-y-8 animate-fade-in">
       {Object.entries(standings).map(([group, teams]) => (
         <div key={group} className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl relative">
-          
-          {/* Group Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-800">
              <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-orange-500/20">{group}</div>
@@ -344,7 +404,6 @@ function StandingsTab({ standings }) {
              </div>
              <Badge color="gray">LIVE</Badge>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-gray-950/50 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
@@ -459,14 +518,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-orange-500/30 pb-24">
-      {/* Decorative Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-600/10 blur-[120px] rounded-full"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-purple-600/10 blur-[100px] rounded-full"></div>
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
       </div>
 
-      {/* Header */}
       <header className="relative z-10 pt-12 pb-6 px-4">
         <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/30 bg-orange-500/5 mb-4 backdrop-blur-sm">
@@ -480,7 +537,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Stats Dashboard */}
       <div className="relative z-10 max-w-2xl mx-auto px-4 mb-8">
           <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-6 backdrop-blur-md shadow-xl">
              <div className="flex justify-between items-end mb-2">
@@ -512,24 +568,27 @@ export default function App() {
         <div className="max-w-2xl mx-auto px-4 flex">
           <TabBtn active={tab === "standings"} onClick={() => setTab("standings")} icon="📊">Table</TabBtn>
           <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon="📅">Matches</TabBtn>
-          <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)} className="px-6 py-4 text-gray-600 hover:text-white transition-colors ml-auto">
-             {isAdmin ? <span className="text-xs font-bold text-red-500">LOGOUT</span> : <span className="text-lg">⚙️</span>}
-          </button>
+          <TabBtn active={tab === "bracket"} onClick={() => setTab("bracket")} icon="⚡">Bracket</TabBtn>
         </div>
       </div>
 
-      {/* Content Area */}
       <main className="relative z-10 max-w-2xl mx-auto px-4 min-h-[50vh]">
         {tab === "standings" && <StandingsTab standings={standings} />}
         {tab === "schedule" && <ScheduleTab matches={allMatches} isAdmin={isAdmin} onEditScore={setScoreModal} onDeleteScore={handleDeleteScore} />}
+        {tab === "bracket" && <BracketTab matches={koMatches} />}
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 text-center py-10 opacity-30">
-        <p className="text-[9px] font-mono text-gray-500">POWERED BY FIREBASE • BANGMOD 2026 SYSTEM</p>
+      {/* Footer & Admin Button */}
+      <footer className="relative z-10 text-center py-10">
+        <p className="text-[9px] font-mono text-gray-600">POWERED BY FIREBASE • BANGMOD 2026 SYSTEM</p>
+        <button 
+          onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)} 
+          className={`mt-4 text-[9px] font-bold uppercase tracking-widest transition-all ${isAdmin ? "text-red-500 opacity-100" : "text-gray-800 opacity-30 hover:opacity-100 hover:text-white"}`}
+        >
+          {isAdmin ? "Logout Admin" : "Admin Login"}
+        </button>
       </footer>
 
-      {/* Modals */}
       {showAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} onSuccess={() => { setIsAdmin(true); setToast({message: "Welcome Admin", type: "success"}); }} />}
       {scoreModal && <ScoreModal match={scoreModal} onClose={() => setScoreModal(null)} onSave={handleSaveScore} />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

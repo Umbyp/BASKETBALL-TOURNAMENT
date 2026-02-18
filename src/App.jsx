@@ -94,21 +94,44 @@ function enrichMatch(m) {
   return { ...m, matchNo: s.matchNo || m.id, dateLabel: s.dateLabel || "", schedDate: s.date || "", schedTime: s.time || "" };
 }
 
-// --- Standings ---
 function computeStandings(teams, matches) {
   const stats = {};
   if (!teams || !matches) return {};
+  
   Object.entries(teams).forEach(([g, ts]) => ts.forEach((t) => {
     stats[t] = { team: t, group: g, played: 0, wins: 0, losses: 0, pts: 0, pf: 0, pa: 0 };
   }));
+
   matches.forEach((m) => {
     if (!m.played || m.round !== 1) return;
     const h = stats[m.home], a = stats[m.away];
     if (!h || !a) return;
-    h.played++; a.played++; h.pf += m.homeScore; h.pa += m.awayScore; a.pf += m.awayScore; a.pa += m.homeScore;
-    if (m.homeScore > m.awayScore) { h.wins++; h.pts += 3; a.losses++; a.pts += 1; }
-    else { a.wins++; a.pts += 3; h.losses++; h.pts += 1; }
+
+    h.played++; a.played++; 
+    h.pf += m.homeScore; h.pa += m.awayScore; 
+    a.pf += m.awayScore; a.pa += m.homeScore;
+
+    // --- ตรวจสอบเงื่อนไขการแพ้บาย (Forfeit) ---
+    // ทีมเหย้าแพ้บาย = สกอร์ 0 และทีมเยือนได้ 20
+    const isHomeForfeit = (m.homeScore === 0 && m.awayScore === 20);
+    // ทีมเยือนแพ้บาย = สกอร์ 0 และทีมเหย้าได้ 20
+    const isAwayForfeit = (m.awayScore === 0 && m.homeScore === 20);
+
+    if (m.homeScore > m.awayScore) {
+      h.wins++;
+      h.pts += 3;
+      a.losses++;
+      // ถ้าแพ้ปกติได้ 1 แต้ม แต่ถ้าแพ้บาย (Forfeit) ได้ 0 แต้ม
+      a.pts += isAwayForfeit ? 0 : 1; 
+    } else if (m.awayScore > m.homeScore) {
+      a.wins++;
+      a.pts += 3;
+      h.losses++;
+      // ถ้าแพ้ปกติได้ 1 แต้ม แต่ถ้าแพ้บาย (Forfeit) ได้ 0 แต้ม
+      h.pts += isHomeForfeit ? 0 : 1;
+    }
   });
+
   const grouped = {};
   Object.keys(teams).forEach((g) => {
     grouped[g] = teams[g].map((t) => stats[t]).sort((a, b) => {
@@ -238,9 +261,21 @@ function ScoreModal({ match, onClose, onSave }) {
   const [a, setA] = useState(match.awayScore ?? "");
   const [date, setDate] = useState(match.date ?? "");
   const [time, setTime] = useState(match.time ?? "");
+  
   const displayHome = match.resolvedHome || match.home;
   const displayAway = match.resolvedAway || match.away;
+
+  // ฟังก์ชันทางลัดสำหรับชนะบาย
+  const handleForfeit = (winnerSide) => {
+    if (winnerSide === "home") {
+      setH(20); setA(0);
+    } else {
+      setH(0); setA(20);
+    }
+  };
+
   const handleSave = () => { if (h === "" || a === "") return; onSave(match.id, parseInt(h), parseInt(a), date, time); onClose(); };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -249,6 +284,38 @@ function ScoreModal({ match, onClose, onSave }) {
           <Badge color="purple" className="mb-2">Update Result</Badge>
           <div className="text-xs text-gray-500 font-mono mt-1">{match.label || `Match #${match.id}`}</div>
         </div>
+
+        {/* Home Section */}
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex flex-col items-center flex-1">
+            <TeamAvatar name={displayHome} size="lg" />
+            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase truncate max-w-[90px] text-center">{displayHome}</p>
+            <button 
+              onClick={() => handleForfeit("home")}
+              className="mt-2 text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-tighter"
+            >
+              ชนะบาย (20-0)
+            </button>
+            <input type="number" value={h} onChange={e => setH(e.target.value)} className="mt-2 w-16 h-12 bg-gray-800 border border-gray-700 rounded-lg text-center text-2xl font-black text-white focus:border-orange-500 outline-none tabular-nums" placeholder="-" autoFocus />
+          </div>
+
+          <div className="text-gray-700 text-xl font-black">VS</div>
+
+          {/* Away Section */}
+          <div className="flex flex-col items-center flex-1">
+            <TeamAvatar name={displayAway} size="lg" />
+            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase truncate max-w-[90px] text-center">{displayAway}</p>
+            <button 
+              onClick={() => handleForfeit("away")}
+              className="mt-2 text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-tighter"
+            >
+              ชนะบาย (20-0)
+            </button>
+            <input type="number" value={a} onChange={e => setA(e.target.value)} className="mt-2 w-16 h-12 bg-gray-800 border border-gray-700 rounded-lg text-center text-2xl font-black text-white focus:border-orange-500 outline-none tabular-nums" placeholder="-" />
+          </div>
+        </div>
+
+        {/* Inputs for Date/Time remains the same... */}
         <div className="grid grid-cols-2 gap-3 mb-6 bg-gray-950/50 p-3 rounded-xl border border-gray-800">
           <div>
             <label className="text-[10px] text-gray-500 font-bold uppercase block mb-1">Date</label>
@@ -259,19 +326,7 @@ function ScoreModal({ match, onClose, onSave }) {
             <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full bg-transparent text-white text-xs outline-none font-mono" />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="flex flex-col items-center flex-1">
-            <TeamAvatar name={displayHome} size="lg" />
-            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase truncate max-w-[90px] text-center">{displayHome}</p>
-            <input type="number" value={h} onChange={e => setH(e.target.value)} className="mt-2 w-16 h-12 bg-gray-800 border border-gray-700 rounded-lg text-center text-2xl font-black text-white focus:border-orange-500 outline-none tabular-nums" placeholder="-" autoFocus />
-          </div>
-          <div className="text-gray-700 text-xl font-black">VS</div>
-          <div className="flex flex-col items-center flex-1">
-            <TeamAvatar name={displayAway} size="lg" />
-            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase truncate max-w-[90px] text-center">{displayAway}</p>
-            <input type="number" value={a} onChange={e => setA(e.target.value)} className="mt-2 w-16 h-12 bg-gray-800 border border-gray-700 rounded-lg text-center text-2xl font-black text-white focus:border-orange-500 outline-none tabular-nums" placeholder="-" />
-          </div>
-        </div>
+
         <button onClick={handleSave} disabled={h === "" || a === ""} className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-sm font-black uppercase tracking-widest shadow-lg transition-all">Confirm Result</button>
       </div>
     </div>
